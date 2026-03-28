@@ -1,0 +1,54 @@
+const express  = require("express");
+const mongoose = require("mongoose");
+const ejs      = require("ejs");
+const app      = express();
+
+app.use(express.urlencoded({ extended: true }));
+mongoose.connect("mongodb://localhost:27017/studentdb");
+const Student = mongoose.model("Student", new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  course: { type: String, required: true },
+  grade: { type: String, default: "A" },
+}));
+
+const list = `
+<h2>Students</h2>
+<a href="/new">+ Add</a><br><br>
+<table border="1" cellpadding="8">
+  <tr><th>Name</th><th>Email</th><th>Course</th><th>Grade</th><th>Action</th></tr>
+  <% students.forEach(s=>{ %>
+  <tr>
+    <td><%=s.name%></td><td><%=s.email%></td>
+    <td><%=s.course%></td><td><%=s.grade%></td>
+    <td>
+      <a href="/edit/<%=s._id%>">Edit</a> |
+      <form action="/delete/<%=s._id%>" method="POST" style="display:inline">
+        <button onclick="return confirm('Delete?')">Del</button>
+      </form>
+    </td>
+  </tr>
+  <% }) %>
+</table>`;
+const form = `
+<h2><%=s?"Edit":"Add"%> Student</h2>
+<form method="POST" action="<%=s?'/update/'+s._id:'/'%>">
+  Name:   <input name="name"   value="<%=s?s.name:''%>"   required/><br><br>
+  Email:  <input name="email"  value="<%=s?s.email:''%>"  required/><br><br>
+  Course: <input name="course" value="<%=s?s.course:''%>" required/><br><br>
+  Grade:  <input name="grade"  value="<%=s?s.grade:'A'%>"/><br><br>
+  <button><%=s?"Update":"Add"%></button>
+</form>
+<a href="/">Back</a>`;
+app.get("/",          async (req, res) => res.send(ejs.render(list, { students: await Student.find() })));
+app.get("/new",             (req, res) => res.send(ejs.render(form, { s: null })));
+app.get("/edit/:id",  async (req, res) => res.send(ejs.render(form, { s: await Student.findById(req.params.id) })));
+app.post("/",         async (req, res) => { await Student.create(req.body);                                          res.redirect("/"); });
+app.post("/update/:id", async (req, res) => { await Student.findByIdAndUpdate(req.params.id, req.body);             res.redirect("/"); });
+app.post("/delete/:id", async (req, res) => { await Student.findByIdAndDelete(req.params.id);                       res.redirect("/"); });
+app.listen(3000, () => console.log("http://localhost:3000"));
+### Run
+```
+npm init -y
+npm install express mongoose ejs
+node server.js
